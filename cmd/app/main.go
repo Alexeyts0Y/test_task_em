@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/Alexeyts0Y/test_task_em/internal/handlers"
@@ -19,9 +20,21 @@ func main() {
 		os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"),
 		os.Getenv("DB_HOST"), os.Getenv("DB_PORT"), os.Getenv("DB_NAME"))
 
-	repository.RunMigrations(dsn)
-	pool, _ := repository.InitDB(context.Background(), dsn)
+	if err := repository.RunMigrations(dsn); err != nil {
+		slog.Error("Migration error", "error", err)
+		os.Exit(1)
+	}
+
+	pool, err := repository.InitDB(context.Background(), dsn)
+	if err != nil {
+		slog.Error("DB init error", "error", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
 	repo := repository.NewSubscriptionRepo(pool)
+
+	repository.RunMigrations(dsn)
 
 	svc := service.NewSubscriptionService(repo)
 
